@@ -15,4 +15,6 @@
 - [] Boost (Asio)
 - [] ZLib
 
-
+![](https://github.com/jkapter/WhatsminerTgBot/blob/main/img/WmBotData.png)
+![](https://github.com/jkapter/WhatsminerTgBot/blob/main/img/WmBotSettings.png)
+![](https://github.com/jkapter/WhatsminerTgBot/blob/main/img/WmBotUsers.png)
