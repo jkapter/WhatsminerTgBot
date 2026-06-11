@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/">
+        <file>../img/block.png</file>
+        <file>../img/circle_green_checkmark.svg</file>
+        <file>../styles/styles.qss</file>
+        <file>../img/whatsminer_logo.png</file>
+        <file>../img/add_admin.png</file>
+        <file>../img/block-user_2.png</file>
+        <file>../img/delete_admin.png</file>
+        <file>../img/send-message.png</file>
+        <file>../img/send-messages-all.png</file>
+        <file>../img/verified-user.png</file>
+        <file>../img/refresh-cw.svg</file>
+    </qresource>
+</RCC>
