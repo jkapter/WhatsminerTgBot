@@ -262,7 +262,7 @@ TgBotManager::TgBotManager(const std::string& bot_token, DeviceManager& driver_m
     restore_user_data_from_file_();
 
     if(auto_restart_bot_) {
-        QTimer::singleShot(1000, this, &TgBotManager::StartBot);
+        QTimer::singleShot(RESTART_BOT_PERIOD_, this, &TgBotManager::StartBot);
     }
 }
 
@@ -512,6 +512,27 @@ TGParent *TgBotManager::GetTGParent() const
     return tg_parent_.get();
 }
 
+void TgBotManager::sl_set_settings_values(QString type, bool active, int value, int hysteresis)
+{
+    if(type == "liquid_temp_notification") {
+        liquid_notifications_.active = active;
+        liquid_notifications_.value = value;
+        liquid_notifications_.hysteresis = hysteresis;
+    }
+
+    if(type == "psu_temp_notification") {
+        psu_notifications_.active = active;
+        psu_notifications_.value = value;
+        psu_notifications_.hysteresis = hysteresis;
+    }
+
+    if(type == "chip_temp_notification") {
+        chip_notifications_.active = active;
+        chip_notifications_.value = value;
+        chip_notifications_.hysteresis = hysteresis;
+    }
+}
+
 
 void TgBotManager::make_users_processing_() {
     tg_parent_->Bot()->getEvents().onAnyMessage([this](TgBot::Message::Ptr message) {
@@ -714,6 +735,11 @@ void TgBotManager::make_triggers_data_()
     triggers_for_check_.clear();
     triggers_previous_check_.clear();
     triggers_actions_.clear();
+    address_to_trigger_states_.clear();
+
+    for(const auto& it: device_manager_->GetDeviceAddresses()) {
+        address_to_trigger_states_[it];
+    }
 
     std::string trigger_name;
     std::function<bool(QString)> trigger_func;
@@ -801,11 +827,21 @@ void TgBotManager::make_triggers_data_()
 
     trigger_name = "liquid_hot";
     trigger_func = [this](QString addr){
+        if(!liquid_notifications_.active) return false;
         WhatsminerData miner_data = device_manager_->GetDeviceData(addr);
-        return miner_data.LiquidTemp > 60.;
+        if(!address_to_trigger_states_.at(addr).liquid && miner_data.LiquidTemp >= liquid_notifications_.value) {
+            address_to_trigger_states_.at(addr).liquid = true;
+            return true;
+        }
+        if(address_to_trigger_states_.at(addr).liquid && (miner_data.LiquidTemp <= (liquid_notifications_.value - liquid_notifications_.hysteresis))) {
+            address_to_trigger_states_.at(addr).liquid = false;
+        }
+        return false;
     };
     trigger_action = [this](QString addr){
-        QString mes = QString("Прибор [%1][%2] температрура теплоносителя более 60 градусов").arg(addr, device_manager_->GetStringValue(addr, u"WorkerName"_s));
+        QString mes = QString("Прибор [%1][%2] температрура теплоносителя более %3 градусов")
+                          .arg(addr, device_manager_->GetStringValue(addr, u"WorkerName"_s))
+                          .arg(liquid_notifications_.value);
         std::string std_mes = mes.toStdString();
         screen_symbols_(std_mes, screened_symbols_);
         auto ids_vec = tg_parent_->GetChatIDs(USER_TYPE::REGISTRD);
@@ -821,11 +857,21 @@ void TgBotManager::make_triggers_data_()
 
     trigger_name = "psu_hot";
     trigger_func = [this](QString addr){
+        if(!psu_notifications_.active) return false;
         WhatsminerData miner_data = device_manager_->GetDeviceData(addr);
-        return miner_data.PSUTemperature > 60.;
+        if(!address_to_trigger_states_.at(addr).psu && miner_data.PSUTemperature >= psu_notifications_.value) {
+            address_to_trigger_states_.at(addr).psu = true;
+            return true;
+        }
+        if(address_to_trigger_states_.at(addr).psu && (miner_data.PSUTemperature <= (psu_notifications_.value - psu_notifications_.hysteresis))) {
+            address_to_trigger_states_.at(addr).psu = false;
+        }
+        return false;
     };
     trigger_action = [this](QString addr){
-        QString mes = QString("Прибор [%1][%2] температрура блока питания более 60 градусов").arg(addr, device_manager_->GetStringValue(addr, u"WorkerName"_s));
+        QString mes = QString("Прибор [%1][%2] температрура блока питания более %3 градусов")
+                          .arg(addr, device_manager_->GetStringValue(addr, u"WorkerName"_s))
+                          .arg(psu_notifications_.value);
         std::string std_mes = mes.toStdString();
         screen_symbols_(std_mes, screened_symbols_);
         auto ids_vec = tg_parent_->GetChatIDs(USER_TYPE::REGISTRD);
@@ -841,11 +887,21 @@ void TgBotManager::make_triggers_data_()
 
     trigger_name = "chip_hot";
     trigger_func = [this](QString addr){
+        if(!chip_notifications_.active) return false;
         WhatsminerData miner_data = device_manager_->GetDeviceData(addr);
-        return miner_data.ChipTempMax > 85.;
+        if(!address_to_trigger_states_.at(addr).chip && miner_data.ChipTempMax >= chip_notifications_.value) {
+            address_to_trigger_states_.at(addr).chip = true;
+            return true;
+        }
+        if(address_to_trigger_states_.at(addr).chip && (miner_data.ChipTempMax <= (chip_notifications_.value - chip_notifications_.hysteresis))) {
+            address_to_trigger_states_.at(addr).chip = false;
+        }
+        return false;
     };
     trigger_action = [this](QString addr){
-        QString mes = QString("Прибор [%1][%2] макс. температура чипа более 85 градусов").arg(addr, device_manager_->GetStringValue(addr, u"WorkerName"_s));
+        QString mes = QString("Прибор [%1][%2] макс. температура чипа более %3 градусов")
+                          .arg(addr, device_manager_->GetStringValue(addr, u"WorkerName"_s))
+                          .arg(chip_notifications_.value);
         std::string std_mes = mes.toStdString();
         screen_symbols_(std_mes, screened_symbols_);
         auto ids_vec = tg_parent_->GetChatIDs(USER_TYPE::REGISTRD);

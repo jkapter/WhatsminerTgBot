@@ -49,6 +49,8 @@ private slots:
     void sl_tb_banuser_clicked();
     void sl_tb_sendtoall_clicked();
     void sl_get_text_message_to_clients(QString mes);
+    void sl_set_save_button_enabled();
+    void sl_save_settings_to_bot();
 
 private:
     Ui::MainWindow *ui;

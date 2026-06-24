@@ -126,6 +126,9 @@ signals:
     void sg_bot_thread_state_changed();
     void sg_stop_bot_thread();
 
+public slots:
+    void sl_set_settings_values(QString type, bool active, int value, int hysteresis);
+
 private slots:
     void sl_bot_finished();
     void sl_bot_started();
@@ -135,11 +138,28 @@ private slots:
     void sl_try_to_connect_api_successful();
 
 private:
+
+    struct Settings {
+        bool active = false;
+        int value = 0;
+        int hysteresis = 0;
+    };
+
+    struct NotificationStates {
+        bool liquid = false;
+        bool psu = false;
+        bool chip = false;
+    };
+
     std::string bot_token_;
 
     bool auto_restart_bot_ = false;
     bool bot_started_ = false;
     bool bot_trying_connect_api_ = false;
+
+    Settings liquid_notifications_;
+    Settings psu_notifications_;
+    Settings chip_notifications_;
 
     DeviceManager* device_manager_;
     std::unique_ptr<TGParent> tg_parent_ = nullptr;
@@ -153,7 +173,7 @@ private:
     int restart_counter_ = 0;
 
     const int CHECK_EVENTS_PERIOD_ = 20000;
-    const int RESTART_BOT_PERIOD_ = 10000;
+    const int RESTART_BOT_PERIOD_ = 5000;
     const int TIME_TO_RESTART_APP_ON_COMM_FAIL_ = 150;
     const std::string screened_symbols_= "_[]()~#+-=|{}.!`";
 
@@ -166,6 +186,8 @@ private:
     std::unordered_map<std::string, std::function<void(QString addr)>> triggers_actions_;
     std::unordered_map<std::int64_t, TgBot::Message::Ptr> chat_to_messages_to_delete_;
     std::unordered_map<std::int64_t, std::pair<QString,TgBot::Message::Ptr>> chat_to_messages_wait_limit_;
+
+    std::unordered_map<QString, NotificationStates> address_to_trigger_states_;
 
     bool opc_comm_status_previous_scan_ = false;
     int opc_comm_failed_time_ = 0;

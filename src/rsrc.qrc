@@ -11,5 +11,6 @@
         <file>../img/send-messages-all.png</file>
         <file>../img/verified-user.png</file>
         <file>../img/refresh-cw.svg</file>
+        <file>../img/check-mark.png</file>
     </qresource>
 </RCC>

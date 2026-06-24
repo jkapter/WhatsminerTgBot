@@ -147,6 +147,12 @@ QFrame, QStackedWidget {
     background-color: white;
 }
 
+QFrame[frameShape="1"] {
+    border: 1px solid #519999;
+    border-radius: 6px;
+    background-color: transparent;
+}
+
 QFrame#frLeftMenu {
     background-color: white;
     padding: 5px;
@@ -172,7 +178,19 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    image: url(:/img/icons/check-mark.png);
+    image: url(:/img/check-mark.png);
+}
+
+QPushButton:disabled, QToolButton:disabled {
+    color: #A0A0A0;
+    background-color: #EAEAEA;
+    border-color: #A0B3B2;
+}
+
+QSpinBox:disabled, QDoubleSpinBox:disabled {
+    color: #A0A0A0;
+    background-color: #F5F5F5;
+    border-color: #A0B3B2;
 }
 
 QDialog {

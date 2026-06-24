@@ -54,6 +54,46 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(tgbot_manager_.get(), &TgBotManager::sg_bot_thread_state_changed, this, &MainWindow::sl_bot_status_changed);
     QObject::connect(ui->pbRestartBot, &QPushButton::clicked, this, [this](){tgbot_manager_->StopBot();});
 
+    tgbot_manager_->sl_set_settings_values(u"liquid_temp_notification"_s
+                                           , ui->chbHighLiquidTemp->isChecked()
+                                           , ui->sbHighLiquidTempValue->value()
+                                           , ui->sbHighLiquidTempHyst->value());
+
+    tgbot_manager_->sl_set_settings_values(u"psu_temp_notification"_s
+                                           , ui->chbHighPSUTemp->isChecked()
+                                           , ui->sbHighPSUTempValue->value()
+                                           , ui->sbHighPSUTempHyst->value());
+
+    tgbot_manager_->sl_set_settings_values(u"chip_temp_notification"_s
+                                           , ui->chbHighChipTemp->isChecked()
+                                           , ui->sbHighLiquidTempValue->value()
+                                           , ui->sbHighChipTempHyst->value());
+
+
+    QObject::connect(ui->chbHighLiquidTemp, &QCheckBox::checkStateChanged, this, &MainWindow::sl_set_save_button_enabled);
+    QObject::connect(ui->chbHighLiquidTemp, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState state){
+        ui->sbHighLiquidTempHyst->setEnabled(state == Qt::Checked);
+        ui->sbHighLiquidTempValue->setEnabled(state == Qt::Checked);
+    });
+    QObject::connect(ui->chbHighPSUTemp, &QCheckBox::checkStateChanged, this, &MainWindow::sl_set_save_button_enabled);
+    QObject::connect(ui->chbHighPSUTemp, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState state){
+        ui->sbHighPSUTempHyst->setEnabled(state == Qt::Checked);
+        ui->sbHighPSUTempValue->setEnabled(state == Qt::Checked);
+    });
+    QObject::connect(ui->chbHighChipTemp, &QCheckBox::checkStateChanged, this, &MainWindow::sl_set_save_button_enabled);
+    QObject::connect(ui->chbHighChipTemp, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState state){
+        ui->sbHighChipTempHyst->setEnabled(state == Qt::Checked);
+        ui->sbHighChipTempValue->setEnabled(state == Qt::Checked);
+    });
+    QObject::connect(ui->sbHighLiquidTempValue, &QSpinBox::valueChanged, this, &MainWindow::sl_set_save_button_enabled);
+    QObject::connect(ui->sbHighLiquidTempHyst, &QSpinBox::valueChanged, this, &MainWindow::sl_set_save_button_enabled);
+    QObject::connect(ui->sbHighPSUTempHyst, &QSpinBox::valueChanged, this, &MainWindow::sl_set_save_button_enabled);
+    QObject::connect(ui->sbHighPSUTempValue, &QSpinBox::valueChanged, this, &MainWindow::sl_set_save_button_enabled);
+    QObject::connect(ui->sbHighChipTempValue, &QSpinBox::valueChanged, this, &MainWindow::sl_set_save_button_enabled);
+    QObject::connect(ui->sbHighChipTempHyst, &QSpinBox::valueChanged, this, &MainWindow::sl_set_save_button_enabled);
+
+    QObject::connect(ui->pbSaveSettings, &QPushButton::clicked, this, &MainWindow::sl_save_settings_to_bot);
+
     QObject::connect(miner_manager_.get(), &DeviceManager::sg_device_data_updated, this, &MainWindow::sl_update_device_data);
 
     device_tree_model_ = new DeviceTreeViewModel(*miner_manager_.get(), this);
@@ -199,6 +239,27 @@ void MainWindow::save_settings_to_json_() const
         main_obj.insert("devices", miner_manager_->SaveToJson());
         main_obj.insert("token", ui->leBotToken->text());
 
+        QJsonObject settings_obj;
+        QJsonObject liquid_temp_obj;
+        liquid_temp_obj.insert("notify", ui->chbHighLiquidTemp->isChecked());
+        liquid_temp_obj.insert("value", ui->sbHighLiquidTempValue->value());
+        liquid_temp_obj.insert("hysteresis", ui->sbHighLiquidTempHyst->value());
+        settings_obj.insert("liquid_temp_notifications", liquid_temp_obj);
+
+        QJsonObject psu_temp_obj;
+        psu_temp_obj.insert("notify", ui->chbHighPSUTemp->isChecked());
+        psu_temp_obj.insert("value", ui->sbHighPSUTempValue->value());
+        psu_temp_obj.insert("hysteresis", ui->sbHighPSUTempHyst->value());
+        settings_obj.insert("psu_temp_notifications", psu_temp_obj);
+
+        QJsonObject chip_temp_obj;
+        chip_temp_obj.insert("notify", ui->chbHighChipTemp->isChecked());
+        chip_temp_obj.insert("value", ui->sbHighChipTempValue->value());
+        chip_temp_obj.insert("hysteresis", ui->sbHighChipTempHyst->value());
+        settings_obj.insert("chip_temp_notifications", chip_temp_obj);
+
+        main_obj.insert("notification_settings", settings_obj);
+
         QJsonDocument json_doc(main_obj);
         if(file.write(json_doc.toJson()) == -1) {
             qWarning() << QString("MainWindow: не удалось сохраненить данные в файл %1.").arg(file_name);
@@ -240,6 +301,75 @@ void MainWindow::restore_settings_from_json_()
         } else {
             qWarning() << QString("MainWindow: не найден токен телеграм бота в файле настроек.");
         }
+
+        bool settings_ok = true;
+
+        if(main_obj.contains("notification_settings") && main_obj.value("notification_settings").isObject()) {
+            QJsonObject settings = main_obj.value("notification_settings").toObject();
+
+            if(settings.contains("liquid_temp_notifications") && settings.value("liquid_temp_notifications").isObject()) {
+                QJsonObject liquid_temp = settings.value("liquid_temp_notifications").toObject();
+                if(liquid_temp.contains("notify") && liquid_temp.value("notify").isBool()
+                    && liquid_temp.contains("value") && liquid_temp.value("value").isDouble()
+                    && liquid_temp.contains("hysteresis") && liquid_temp.value("hysteresis").isDouble()) {
+
+                    ui->chbHighLiquidTemp->setChecked(liquid_temp.value("notify").toBool());
+                    ui->sbHighLiquidTempValue->setValue(liquid_temp.value("value").toInt());
+                    ui->sbHighLiquidTempHyst->setValue(liquid_temp.value("hysteresis").toInt());
+                    ui->sbHighLiquidTempValue->setEnabled(ui->chbHighLiquidTemp->isChecked());
+                    ui->sbHighLiquidTempHyst->setEnabled(ui->chbHighLiquidTemp->isChecked());
+                } else {
+                    settings_ok = false;
+                }
+            } else {
+                settings_ok = false;
+            }
+
+            if(settings.contains("psu_temp_notifications") && settings.value("psu_temp_notifications").isObject()) {
+                QJsonObject liquid_temp = settings.value("psu_temp_notifications").toObject();
+                if(liquid_temp.contains("notify") && liquid_temp.value("notify").isBool()
+                    && liquid_temp.contains("value") && liquid_temp.value("value").isDouble()
+                    && liquid_temp.contains("hysteresis") && liquid_temp.value("hysteresis").isDouble()) {
+
+                    ui->chbHighPSUTemp->setChecked(liquid_temp.value("notify").toBool());
+                    ui->sbHighPSUTempValue->setValue(liquid_temp.value("value").toInt());
+                    ui->sbHighPSUTempHyst->setValue(liquid_temp.value("hysteresis").toInt());
+                    ui->sbHighPSUTempHyst->setEnabled(ui->chbHighPSUTemp->isChecked());
+                    ui->sbHighPSUTempValue->setEnabled(ui->chbHighPSUTemp->isChecked());
+                } else {
+                    settings_ok = false;
+                }
+            } else {
+                settings_ok = false;
+            }
+
+            if(settings.contains("chip_temp_notifications") && settings.value("chip_temp_notifications").isObject()) {
+                QJsonObject liquid_temp = settings.value("chip_temp_notifications").toObject();
+                if(liquid_temp.contains("notify") && liquid_temp.value("notify").isBool()
+                    && liquid_temp.contains("value") && liquid_temp.value("value").isDouble()
+                    && liquid_temp.contains("hysteresis") && liquid_temp.value("hysteresis").isDouble()) {
+
+                    ui->chbHighChipTemp->setChecked(liquid_temp.value("notify").toBool());
+                    ui->sbHighChipTempValue->setValue(liquid_temp.value("value").toInt());
+                    ui->sbHighChipTempHyst->setValue(liquid_temp.value("hysteresis").toInt());
+                    ui->sbHighChipTempHyst->setEnabled(ui->chbHighChipTemp->isChecked());
+                    ui->sbHighChipTempValue->setEnabled(ui->chbHighChipTemp->isChecked());
+                } else {
+                    settings_ok = false;
+                }
+            } else {
+                settings_ok = false;
+            }
+
+            if(!settings_ok) {
+                qWarning() << QString("MainWindow: неверный формат настроек уведомлений телеграм бота в файле.");
+            }
+
+        } else {
+            qWarning() << QString("MainWindow: не найдены настройки уведомлений телеграм бота в файле.");
+        }
+
+
     } else {
         qWarning() << u"DeviceManager: невозможно открыть файл %1 для чтения"_s.arg(file_name);
     }
@@ -467,6 +597,32 @@ void MainWindow::sl_tb_sendtoall_clicked()
 void MainWindow::sl_get_text_message_to_clients(QString mes)
 {
     tgbot_manager_->SendMessageToUsers(temp_clients_, mes);
+}
+
+void MainWindow::sl_set_save_button_enabled()
+{
+    ui->pbSaveSettings->setEnabled(true);
+}
+
+void MainWindow::sl_save_settings_to_bot()
+{
+    tgbot_manager_->sl_set_settings_values(u"liquid_temp_notification"_s
+                                           , ui->chbHighLiquidTemp->isChecked()
+                                           , ui->sbHighLiquidTempValue->value()
+                                           , ui->sbHighLiquidTempHyst->value());
+
+    tgbot_manager_->sl_set_settings_values(u"psu_temp_notification"_s
+                                           , ui->chbHighPSUTemp->isChecked()
+                                           , ui->sbHighPSUTempValue->value()
+                                           , ui->sbHighPSUTempHyst->value());
+
+    tgbot_manager_->sl_set_settings_values(u"chip_temp_notification"_s
+                                           , ui->chbHighChipTemp->isChecked()
+                                           , ui->sbHighLiquidTempValue->value()
+                                           , ui->sbHighChipTempHyst->value());
+
+    ui->pbSaveSettings->setEnabled(false);
+    tgbot_manager_->StopBot();
 }
 
 void MainWindow::show_message_input_dialog_() {
