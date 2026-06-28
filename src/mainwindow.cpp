@@ -66,7 +66,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     tgbot_manager_->sl_set_settings_values(u"chip_temp_notification"_s
                                            , ui->chbHighChipTemp->isChecked()
-                                           , ui->sbHighLiquidTempValue->value()
+                                           , ui->sbHighChipTempValue->value()
                                            , ui->sbHighChipTempHyst->value());
 
 
@@ -618,7 +618,7 @@ void MainWindow::sl_save_settings_to_bot()
 
     tgbot_manager_->sl_set_settings_values(u"chip_temp_notification"_s
                                            , ui->chbHighChipTemp->isChecked()
-                                           , ui->sbHighLiquidTempValue->value()
+                                           , ui->sbHighChipTempValue->value()
                                            , ui->sbHighChipTempHyst->value());
 
     ui->pbSaveSettings->setEnabled(false);
